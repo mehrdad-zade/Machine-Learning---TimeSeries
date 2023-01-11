@@ -44,15 +44,15 @@ for i in range(data_size):
     cases.append(country_data_sum)
 
     if country_data_sum < 50000:
-        caseRange.append("U50K")
+        caseRange.append("Under 50K")
     elif country_data_sum >= 50000 and country_data_sum < 200000:
-        caseRange.append("50Kto200K")
+        caseRange.append("50K to 200K")
     elif country_data_sum >= 200000 and country_data_sum < 800000:
-        caseRange.append("200Kto800K")
+        caseRange.append("200K to 800K")
     elif country_data_sum >= 800000 and country_data_sum < 1500000:
-        caseRange.append("800Kto1.5M")
+        caseRange.append("800K to 1.5M")
     elif country_data_sum >= 1500000:
-        caseRange.append("1.5M+")
+        caseRange.append("1.5M +")
 
     death_data = df1.iloc[i,:]
     death_data_sum = pd.to_numeric(death_data, errors='coerce').sum()
@@ -83,14 +83,82 @@ world["Cases Range"] = caseRange
 print("\n")
 print(world.head)
 
-#############################################content map case ranges
+#######################################visualize the worldwide spread of Covid-19
 
-
-fig = px.choropleth(world.dropna(),
+fig = px.choropleth(world,
                    locations="Continent",
                    color="Cases Range",
-                    projection="mercator",
-                    color_discrete_sequence=["white","khaki","yellow","orange","red"])
-fig.update_geos(fitbounds="locations", visible=False)
+                   projection="mercator",
+                   color_discrete_sequence=["red","orange","khaki","yellow"])
+fig.update_geos(fitbounds="locations", visible=True)
 fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 fig.show()
+
+####################################daily cases all around the world
+
+count = []
+for i in range(1,len(df0)):
+    count.append(pd.to_numeric(df0.iloc[i,:], errors='coerce').sum())
+
+df = pd.DataFrame()
+# df["Date"] = df0["country_name"][1:]
+df["Cases"] = count
+# df=df.set_index("Date")
+
+count = []
+for i in range(1,len(df1)):
+    count.append(pd.to_numeric(df0.iloc[i,:], errors='coerce').sum())
+
+df["Deaths"] = count
+print(df)
+df.Cases.plot(title="Daily Covid19 Cases in World",marker=".",figsize=(10,5),label="daily cases")
+df.Cases.rolling(window=5).mean().plot(figsize=(10,5),label="MA5")
+plt.ylabel("Cases")
+plt.legend()
+plt.show()
+
+#####################################daily death case
+
+df.Deaths.plot(title="Daily Covid19 Deaths in World",marker=".",figsize=(10,5),label="daily deaths")
+df.Deaths.rolling(window=5).mean().plot(figsize=(10,5),label="MA5")
+plt.ylabel("Deaths")
+plt.legend()
+plt.show()
+
+################################Covid-19 Cases Prediction for the Next 30 Days
+
+class Fbprophet(object):
+    def fit(self,data):
+        
+        self.data  = data
+        self.model = Prophet(weekly_seasonality=True,daily_seasonality=False,yearly_seasonality=False)
+        self.model.fit(self.data)
+    
+    def forecast(self,periods,freq):
+        
+        self.future = self.model.make_future_dataframe(periods=periods,freq=freq)
+        self.df_forecast = self.model.predict(self.future)
+        
+    def plot(self,xlabel="Years",ylabel="Values"):
+        
+        self.model.plot(self.df_forecast,xlabel=xlabel,ylabel=ylabel,figsize=(9,4))
+        self.model.plot_components(self.df_forecast,figsize=(9,6))
+        
+    def R2(self):
+        return r2_score(self.data.y, self.df_forecast.yhat[:len(df)])
+        
+df_fb  = pd.DataFrame({"ds":[],"y":[]})
+df_fb["ds"] = pd.to_datetime(df.index)
+df_fb["y"]  = df.iloc[:,0].values
+
+model = Fbprophet()
+model.fit(df_fb)
+model.forecast(30,"D")
+model.R2()
+
+forecast = model.df_forecast[["ds","yhat_lower","yhat_upper","yhat"]].tail(30).reset_index().set_index("ds").drop("index",axis=1)
+forecast["yhat"].plot(marker=".",figsize=(10,5))
+plt.fill_between(x=forecast.index, y1=forecast["yhat_lower"], y2=forecast["yhat_upper"],color="gray")
+plt.legend(["forecast","Bound"],loc="upper left")
+plt.title("Forecasting of Next 30 Days Cases")
+plt.show()
