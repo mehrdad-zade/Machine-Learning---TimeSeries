@@ -1,4 +1,5 @@
 #%%
+import os
 import numpy
 import matplotlib.pyplot as plt
 import pandas
@@ -14,7 +15,8 @@ numpy.random.seed(7)
 
 #%%
 # load the dataset
-dataframe = pandas.read_csv('LSTM/airline-passengers.csv', usecols=[1], engine='python')
+# dataframe = pandas.read_csv(os.path.join(os.path.dirname(__file__),"airline-passengers.csv"), usecols=[1], engine='python')
+dataframe = pandas.read_csv('airline-passengers.csv', usecols=[1], engine='python')
 dataset = dataframe.values
 dataset = dataset.astype('float32')
 # normalize the dataset
@@ -85,3 +87,4 @@ plt.plot(trainPredictPlot)
 plt.plot(testPredictPlot)
 plt.show(block=True)
 print("DONE..")
+# %%
